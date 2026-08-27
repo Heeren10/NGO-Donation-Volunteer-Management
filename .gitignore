@@ -1,0 +1,26 @@
+# --- backend (Python / FastAPI) ---
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/*.db
+backend/.env
+
+# --- frontend (Next.js) ---
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/.impeccable/
+
+# --- tooling / scratch ---
+.playwright-mcp/
+*.log
+
+# --- excluded from repo ---
+ppt_slides.md
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db

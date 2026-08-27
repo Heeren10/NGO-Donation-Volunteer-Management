@@ -1,0 +1,98 @@
+import { revalidatePath } from "next/cache";
+import { Megaphone } from "lucide-react";
+import { api, type CampaignCategory } from "@/lib/api";
+import { getSession } from "@/lib/auth";
+import { Badge, Button, Card, EmptyState, Input, Label, PageHeader, ProgressBar, Select } from "@/components/ui";
+
+const STATUS_VARIANT = { draft: "default", active: "primary", completed: "accent" } as const;
+
+const CATEGORY_LABELS: Record<CampaignCategory, string> = {
+  education: "Education",
+  healthcare: "Healthcare",
+  environment: "Environment",
+  animal_welfare: "Animal Welfare",
+  disaster_relief: "Disaster Relief",
+  womens_empowerment: "Women's Empowerment",
+  community_development: "Community Development",
+  child_welfare: "Child Welfare",
+};
+
+export default async function CampaignsPage() {
+  const [campaigns, session] = await Promise.all([api.campaigns.list(), getSession()]);
+  const isAdmin = session?.role === "admin";
+
+  async function addCampaign(formData: FormData) {
+    "use server";
+    const name = String(formData.get("name") || "").trim();
+    const goal_amount = Number(formData.get("goal_amount"));
+    const start_date = String(formData.get("start_date") || "");
+    const category = String(formData.get("category") || "") as CampaignCategory | "";
+    if (!name || !goal_amount || !start_date) return;
+    await api.campaigns.create({ name, goal_amount, start_date, category: category || undefined });
+    revalidatePath("/campaigns");
+    revalidatePath("/");
+    revalidatePath("/events");
+  }
+
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8 sm:px-8">
+      <PageHeader icon={<Megaphone size={18} />} title="Campaigns" subtitle={`${campaigns.length} fundraising campaign${campaigns.length === 1 ? "" : "s"}`} />
+
+      <div className="flex flex-col gap-3">
+        {campaigns.length === 0 && (
+          <EmptyState icon={<Megaphone size={22} />} title="No campaigns yet" hint="Launch your first fundraising campaign below." />
+        )}
+        {campaigns.map((c) => {
+          const pct = c.goal_amount > 0 ? (c.raised_amount / c.goal_amount) * 100 : 0;
+          return (
+            <Card key={c.id} hover>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 font-medium text-ink">
+                  {c.name}
+                  <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
+                  {c.category && <Badge>{CATEGORY_LABELS[c.category]}</Badge>}
+                </span>
+                <span className="text-muted">₹{c.raised_amount.toLocaleString()} / ₹{c.goal_amount.toLocaleString()}</span>
+              </div>
+              <div className="mt-2.5">
+                <ProgressBar pct={pct} />
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {isAdmin && (
+        <Card className="sm:max-w-sm">
+          <span className="text-sm font-medium text-ink">New campaign</span>
+          <form action={addCampaign} className="mt-3 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <Label>Name</Label>
+              <Input name="name" placeholder="Clean Water Drive" required />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label>Category</Label>
+              <Select name="category" defaultValue="">
+                <option value="">None</option>
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label>Goal amount</Label>
+              <Input name="goal_amount" type="number" step="0.01" min="0" required />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label>Start date</Label>
+              <Input name="start_date" type="date" required />
+            </div>
+            <Button type="submit" className="mt-1 self-start">
+              Create campaign
+            </Button>
+          </form>
+        </Card>
+      )}
+    </div>
+  );
+}
