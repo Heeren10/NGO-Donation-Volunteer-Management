@@ -74,6 +74,14 @@ export type Signup = {
   status: "pending" | "confirmed" | "rejected" | "attended" | "no_show";
   hours_logged: number;
   event_name: string | null;
+  volunteer_name: string | null;
+};
+
+export type VolunteerSuggestion = {
+  volunteer_id: number;
+  name: string;
+  score: number;
+  matched_skills: string[];
 };
 
 export type Communication = {
@@ -101,6 +109,16 @@ export type AnalyticsSummary = {
 
 export type AuthToken = { access_token: string; role: "admin" | "volunteer"; profile_id: number };
 export type Me = { id: number; name: string; email: string; role: "admin" | "volunteer"; volunteer_id: number | null };
+
+export type PaymentMethod = "card" | "upi" | "netbanking";
+
+export type DonationReceipt = {
+  reference: string;
+  donor_name: string;
+  amount: number;
+  campaign_name: string | null;
+  date: string;
+};
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -152,8 +170,12 @@ export const api = {
   },
   campaigns: {
     list: () => request<Campaign[]>("/campaigns/"),
+    get: (id: number) => request<Campaign>(`/campaigns/${id}`),
     create: (data: { name: string; goal_amount: number; start_date: string; end_date?: string; category?: CampaignCategory }) =>
       request<Campaign>("/campaigns/", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<{ name: string; goal_amount: number; start_date: string; end_date: string; status: Campaign["status"]; category: CampaignCategory }>) =>
+      request<Campaign>(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: number) => request<void>(`/campaigns/${id}`, { method: "DELETE" }),
   },
   volunteers: {
     list: () => request<Volunteer[]>("/volunteers/"),
@@ -166,8 +188,13 @@ export const api = {
   },
   events: {
     list: () => request<EventItem[]>("/events/"),
+    get: (id: number) => request<EventItem>(`/events/${id}`),
     create: (data: { name: string; date: string; location?: string; campaign_id?: number; category?: EventCategory; roles_needed?: string }) =>
       request<EventItem>("/events/", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<{ name: string; date: string; location: string; campaign_id: number; category: EventCategory; roles_needed: string; outcome_notes: string }>) =>
+      request<EventItem>(`/events/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: number) => request<void>(`/events/${id}`, { method: "DELETE" }),
+    suggestedVolunteers: (id: number) => request<VolunteerSuggestion[]>(`/events/${id}/suggested-volunteers`),
   },
   donations: {
     list: (donorId?: number) => request<Donation[]>(`/donations/${donorId ? `?donor_id=${donorId}` : ""}`),
@@ -200,5 +227,10 @@ export const api = {
   },
   analytics: {
     summary: () => request<AnalyticsSummary>("/analytics/summary"),
+  },
+  public: {
+    campaigns: () => request<Campaign[]>("/public/campaigns", { skipAuthRedirect: true }),
+    donate: (data: { name: string; email?: string; phone?: string; campaign_id?: number; amount: number; method: PaymentMethod }) =>
+      request<DonationReceipt>("/public/donate", { method: "POST", body: JSON.stringify(data), skipAuthRedirect: true }),
   },
 };

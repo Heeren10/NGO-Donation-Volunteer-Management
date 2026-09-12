@@ -1,10 +1,13 @@
 import os
 
-from openai import OpenAI
+from openai import APIError, OpenAI
 
 NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
 NARRATIVE_MARKER = "###NARRATIVE###"
 EMAIL_MARKER = "###EMAIL###"
+
+
+AI_TIMEOUT_SECONDS = 20
 
 
 def _client() -> OpenAI:
@@ -14,7 +17,7 @@ def _client() -> OpenAI:
             "NVIDIA_API_KEY is not set. Get a free key at https://build.nvidia.com and set it "
             "as an environment variable (or in backend/.env) before generating impact reports."
         )
-    return OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=api_key)
+    return OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=api_key, timeout=AI_TIMEOUT_SECONDS)
 
 
 def generate_impact_report(stats: dict) -> dict:
@@ -38,11 +41,14 @@ A short, warm, factual impact narrative (3-5 sentences) suitable for a public ca
 {EMAIL_MARKER}
 A short personalized thank-you/update email draft to a donor, referencing the impact above.
 """
-    response = _client().chat.completions.create(
-        model=NVIDIA_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
-    )
+    try:
+        response = _client().chat.completions.create(
+            model=NVIDIA_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+        )
+    except APIError as e:
+        raise RuntimeError(f"AI provider request failed: {e}") from e
     text = response.choices[0].message.content or ""
 
     if NARRATIVE_MARKER in text and EMAIL_MARKER in text:

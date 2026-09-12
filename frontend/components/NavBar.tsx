@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, HeartHandshake, Users, Megaphone, CalendarDays, Sparkles, UserRound, LogOut } from "lucide-react";
+import { LayoutDashboard, HeartHandshake, Users, Megaphone, CalendarDays, Sparkles, UserRound, LogOut, CircleDollarSign } from "lucide-react";
 import { logoutAction } from "@/lib/auth-actions";
 
 const ADMIN_TABS = [
@@ -11,6 +11,7 @@ const ADMIN_TABS = [
   { href: "/volunteers", label: "Volunteers", icon: Users },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/events", label: "Events", icon: CalendarDays },
+  { href: "/donate", label: "Donate page", icon: CircleDollarSign },
 ];
 
 const VOLUNTEER_TABS = [

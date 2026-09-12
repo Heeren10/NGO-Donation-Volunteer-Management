@@ -5,7 +5,7 @@ A centralized system for donor management, donation tracking, volunteer coordina
 Built for a hackathon around two flagship differentiators:
 
 - **AI Impact Storyteller** — turns a campaign's raw donation/event data into a donor-facing narrative summary and a personalized thank-you email draft, generated on demand.
-- **Volunteer-to-event matching, done simply** — a volunteer applies to an event, staff accepts or rejects. No black-box scoring algorithm deciding who's "suited" for what.
+- **Volunteer-to-event matching, two paths to the same table** — a volunteer applies to an event and staff accepts or rejects (self-service), or staff browses skill/location-ranked suggestions for an event and invites directly (confirmed immediately, since staff already vetted the choice).
 
 See [`PLAN.md`](PLAN.md) for the full strategy/scope reasoning and [`ARCHITECTURE.md`](ARCHITECTURE.md) for the technical reference (data model, auth design, folder layout). Pitch materials are in [`presentation.md`](presentation.md) and [`ppt_slides.md`](ppt_slides.md).
 

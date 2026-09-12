@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { decodeJwtPayload } from "@/lib/jwt";
 
 const TOKEN_COOKIE = "ngo_token";
 const PUBLIC_PATHS = ["/login", "/register"];
+const OPEN_PREFIXES = ["/donate"]; // no login required, ever — donors aren't platform users
 const ADMIN_ONLY_PREFIXES = ["/", "/donors", "/volunteers"];
-
-function decodeRole(token: string): "admin" | "volunteer" | null {
-  try {
-    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
-    if (payload.exp * 1000 < Date.now()) return null;
-    return payload.role ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (OPEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get(TOKEN_COOKIE)?.value;
-  const role = token ? decodeRole(token) : null;
+  const role = token ? decodeJwtPayload(token)?.role ?? null : null;
   const isPublic = PUBLIC_PATHS.includes(pathname);
 
   if (!role && !isPublic) {

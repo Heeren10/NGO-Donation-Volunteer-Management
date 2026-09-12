@@ -1,10 +1,18 @@
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me")
+logger = logging.getLogger("uvicorn.error")
+
+JWT_SECRET = os.environ.get("JWT_SECRET")
+if not JWT_SECRET:
+    JWT_SECRET = "dev-secret-change-me"
+    logger.warning(
+        "JWT_SECRET is not set — using an insecure default. Set JWT_SECRET in backend/.env before deploying."
+    )
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
 

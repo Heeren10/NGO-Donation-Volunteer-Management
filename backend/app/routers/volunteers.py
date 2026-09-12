@@ -1,11 +1,12 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, SQLModel, func, select
+from sqlmodel import Session, SQLModel, select
 
 from app.database import get_session
 from app.deps import get_current_profile, require_admin
-from app.models import EventSignup, Profile, Role, Volunteer
+from app.models import Profile, Role, Volunteer
+from app.services import volunteer_hours_totals
 
 router = APIRouter(prefix="/volunteers", tags=["volunteers"], dependencies=[Depends(get_current_profile)])
 
@@ -40,11 +41,7 @@ class VolunteerRead(SQLModel):
 
 
 def _with_hours(volunteer: Volunteer, session: Session) -> VolunteerRead:
-    hours = session.exec(
-        select(func.coalesce(func.sum(EventSignup.hours_logged), 0)).where(
-            EventSignup.volunteer_id == volunteer.id
-        )
-    ).one()
+    hours = volunteer_hours_totals(session, [volunteer.id]).get(volunteer.id, 0)
     return VolunteerRead(**volunteer.model_dump(), total_hours=hours)
 
 
@@ -58,7 +55,8 @@ def _require_self_or_admin(volunteer: Volunteer, profile: Profile) -> None:
 @router.get("/", response_model=list[VolunteerRead], dependencies=[Depends(require_admin)])
 def list_volunteers(session: Session = Depends(get_session)):
     volunteers = session.exec(select(Volunteer)).all()
-    return [_with_hours(v, session) for v in volunteers]
+    hours = volunteer_hours_totals(session, [v.id for v in volunteers])
+    return [VolunteerRead(**v.model_dump(), total_hours=hours.get(v.id, 0)) for v in volunteers]
 
 
 @router.post("/", response_model=Volunteer, dependencies=[Depends(require_admin)])

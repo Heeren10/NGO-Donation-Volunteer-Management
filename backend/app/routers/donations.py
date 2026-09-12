@@ -7,6 +7,7 @@ from sqlmodel import Session, SQLModel, select
 from app.database import get_session
 from app.deps import require_admin
 from app.models import Donation, DonationChannel, Donor
+from app.services import record_donation
 
 router = APIRouter(prefix="/donations", tags=["donations"], dependencies=[Depends(require_admin)])
 
@@ -35,15 +36,13 @@ def create_donation(donation: DonationCreate, session: Session = Depends(get_ses
     if not donor:
         raise HTTPException(status_code=404, detail="Donor not found")
 
-    donation_date = donation.date or date.today()
-    db_donation = Donation.model_validate(donation, update={"date": donation_date})
-    session.add(db_donation)
-
-    donor.total_donated += donation.amount
-    if not donor.last_donation_date or donation_date > donor.last_donation_date:
-        donor.last_donation_date = donation_date
-    session.add(donor)
-
-    session.commit()
-    session.refresh(db_donation)
-    return db_donation
+    return record_donation(
+        session,
+        donor,
+        amount=donation.amount,
+        campaign_id=donation.campaign_id,
+        channel=donation.channel,
+        method=donation.method,
+        recurring=donation.recurring,
+        on_date=donation.date,
+    )

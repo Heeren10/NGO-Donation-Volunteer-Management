@@ -1,25 +1,8 @@
 import { type CSSProperties } from "react";
 import { revalidatePath } from "next/cache";
 import { CalendarDays, MapPin, Clock, Award, Sparkles, CalendarCheck } from "lucide-react";
-import { api, type EventCategory } from "@/lib/api";
-import { Badge, Button, Card, EmptyState, Input, Label, ProgressRing } from "@/components/ui";
-
-const STATUS_VARIANT = {
-  pending: "default",
-  confirmed: "primary",
-  rejected: "danger",
-  attended: "accent",
-  no_show: "danger",
-} as const;
-
-const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
-  fundraising: "Fundraising",
-  awareness: "Awareness",
-  community_drive: "Community Drive",
-  workshop: "Workshop",
-  training: "Training",
-  charity_campaign: "Charity Campaign",
-};
+import { api } from "@/lib/api";
+import { Badge, Button, Card, DotGrid, EmptyState, EVENT_CATEGORY_LABELS, Input, Label, ProgressRing, SIGNUP_STATUS_VARIANT } from "@/components/ui";
 
 const MILESTONES = [
   { hours: 1, label: "First Steps" },
@@ -62,14 +45,18 @@ export default async function MyDashboard() {
   async function apply(formData: FormData) {
     "use server";
     const event_id = Number(formData.get("event_id"));
-    await api.signups.apply({ event_id });
+    try {
+      await api.signups.apply({ event_id });
+    } catch {
+      // already applied (e.g. a race from double-submitting) — nothing to do, the list below already reflects it
+    }
     revalidatePath("/my");
   }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-8 sm:px-8">
       <Card fill="primary" className="relative overflow-hidden animate-fade-up">
-        <HeroPattern />
+        <DotGrid id="my-dots" opacity={0.08} />
         <div className="relative flex flex-wrap items-center justify-between gap-6">
           <div className="flex flex-col gap-3">
             <div>
@@ -157,7 +144,7 @@ export default async function MyDashboard() {
                 <Card key={s.id}>
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-ink">{s.event_name || `Event #${s.event_id}`}</span>
-                    <Badge variant={STATUS_VARIANT[s.status]}>{s.status.replace("_", " ")}</Badge>
+                    <Badge variant={SIGNUP_STATUS_VARIANT[s.status]}>{s.status.replace("_", " ")}</Badge>
                   </div>
                   {s.hours_logged > 0 && <div className="mt-0.5 text-xs text-muted">{s.hours_logged} hours logged</div>}
                 </Card>
@@ -223,16 +210,5 @@ export default async function MyDashboard() {
         )}
       </section>
     </div>
-  );
-}
-
-function HeroPattern() {
-  return (
-    <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.08]" aria-hidden>
-      <pattern id="my-dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-        <circle cx="2" cy="2" r="1.5" fill="currentColor" />
-      </pattern>
-      <rect width="100%" height="100%" fill="url(#my-dots)" />
-    </svg>
   );
 }

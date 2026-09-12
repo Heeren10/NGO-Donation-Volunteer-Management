@@ -8,6 +8,7 @@ from app.ai_service import generate_impact_report
 from app.database import get_session
 from app.deps import get_current_profile, require_admin
 from app.models import Campaign, CampaignCategory, CampaignStatus, Donation, Event, EventSignup, ImpactReport
+from app.services import campaign_raised_amounts
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"], dependencies=[Depends(get_current_profile)])
 
@@ -18,6 +19,15 @@ class CampaignCreate(SQLModel):
     start_date: date
     end_date: Optional[date] = None
     status: CampaignStatus = CampaignStatus.draft
+    category: Optional[CampaignCategory] = None
+
+
+class CampaignUpdate(SQLModel):
+    name: Optional[str] = None
+    goal_amount: Optional[float] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[CampaignStatus] = None
     category: Optional[CampaignCategory] = None
 
 
@@ -32,17 +42,11 @@ class CampaignRead(SQLModel):
     raised_amount: float
 
 
-def _with_raised(campaign: Campaign, session: Session) -> CampaignRead:
-    raised = session.exec(
-        select(func.coalesce(func.sum(Donation.amount), 0)).where(Donation.campaign_id == campaign.id)
-    ).one()
-    return CampaignRead(**campaign.model_dump(), raised_amount=raised)
-
-
 @router.get("/", response_model=list[CampaignRead])
 def list_campaigns(session: Session = Depends(get_session)):
     campaigns = session.exec(select(Campaign)).all()
-    return [_with_raised(c, session) for c in campaigns]
+    raised = campaign_raised_amounts(session, [c.id for c in campaigns])
+    return [CampaignRead(**c.model_dump(), raised_amount=raised.get(c.id, 0)) for c in campaigns]
 
 
 @router.post("/", response_model=Campaign, dependencies=[Depends(require_admin)])
@@ -59,7 +63,41 @@ def get_campaign(campaign_id: int, session: Session = Depends(get_session)):
     campaign = session.get(Campaign, campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return _with_raised(campaign, session)
+    raised = campaign_raised_amounts(session, [campaign_id]).get(campaign_id, 0)
+    return CampaignRead(**campaign.model_dump(), raised_amount=raised)
+
+
+@router.patch("/{campaign_id}", response_model=CampaignRead, dependencies=[Depends(require_admin)])
+def update_campaign(campaign_id: int, update: CampaignUpdate, session: Session = Depends(get_session)):
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(campaign, field, value)
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
+    raised = campaign_raised_amounts(session, [campaign_id]).get(campaign_id, 0)
+    return CampaignRead(**campaign.model_dump(), raised_amount=raised)
+
+
+@router.delete("/{campaign_id}", status_code=204, dependencies=[Depends(require_admin)])
+def delete_campaign(campaign_id: int, session: Session = Depends(get_session)):
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Donations and events are historical records — detach them instead of deleting, so
+    # a removed campaign doesn't take its donation/event history down with it.
+    for donation in session.exec(select(Donation).where(Donation.campaign_id == campaign_id)).all():
+        donation.campaign_id = None
+        session.add(donation)
+    for event in session.exec(select(Event).where(Event.campaign_id == campaign_id)).all():
+        event.campaign_id = None
+        session.add(event)
+
+    session.delete(campaign)
+    session.commit()
 
 
 def _gather_stats(campaign: Campaign, session: Session) -> dict:

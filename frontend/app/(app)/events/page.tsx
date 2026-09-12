@@ -1,17 +1,9 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { CalendarDays, MapPin } from "lucide-react";
 import { api, type EventCategory } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { Badge, Button, Card, EmptyState, Input, Label, PageHeader, Select } from "@/components/ui";
-
-const CATEGORY_LABELS: Record<EventCategory, string> = {
-  fundraising: "Fundraising",
-  awareness: "Awareness",
-  community_drive: "Community Drive",
-  workshop: "Workshop",
-  training: "Training",
-  charity_campaign: "Charity Campaign",
-};
+import { Badge, Button, Card, EmptyState, EVENT_CATEGORY_LABELS, Input, Label, PageHeader, Select } from "@/components/ui";
 
 export default async function EventsPage() {
   const session = await getSession();
@@ -49,7 +41,11 @@ export default async function EventsPage() {
       ) : (
         <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
           {events.map((e) => (
-            <div key={e.id} className="flex items-center gap-3 px-4 py-3">
+            <Link
+              key={e.id}
+              href={`/events/${e.id}`}
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
+            >
               <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/12 text-primary">
                 <span className="text-[10px] font-medium leading-none">{new Date(e.date).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span>
                 <span className="text-sm font-semibold leading-none">{new Date(e.date).getDate()}</span>
@@ -57,7 +53,7 @@ export default async function EventsPage() {
               <div className="min-w-0 flex-1">
                 <span className="flex items-center gap-2 font-medium text-ink">
                   {e.name}
-                  {e.category && <Badge>{CATEGORY_LABELS[e.category]}</Badge>}
+                  {e.category && <Badge>{EVENT_CATEGORY_LABELS[e.category]}</Badge>}
                 </span>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   {e.location && (
@@ -70,7 +66,7 @@ export default async function EventsPage() {
                 </div>
               </div>
               <Badge>{e.date}</Badge>
-            </div>
+            </Link>
           ))}
         </div>
       )}
@@ -87,7 +83,7 @@ export default async function EventsPage() {
               <Label>Category</Label>
               <Select name="category" defaultValue="">
                 <option value="">None</option>
-                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                {Object.entries(EVENT_CATEGORY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </Select>

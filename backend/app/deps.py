@@ -1,3 +1,4 @@
+import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
@@ -17,7 +18,7 @@ def get_current_profile(
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         payload = decode_access_token(credentials.credentials)
-    except Exception:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     profile = session.get(Profile, int(payload["sub"]))

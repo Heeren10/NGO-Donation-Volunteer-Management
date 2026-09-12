@@ -48,7 +48,7 @@ Two roles, not five. A 3rd (Donor self-service login) is listed as a stretch, no
 ## What makes this stand out (differentiators)
 
 1. **AI Impact Storyteller** — one click on a campaign turns raw donation/event data into a narrative impact summary *and* a personalized donor email draft. Built on the backend (`/campaigns/{id}/impact-report`, NVIDIA NIM), **still needs a frontend UI and your API key to actually demo**.
-2. **Volunteer-to-event matching** — **decided:** plain self-service apply → staff accept/reject. No scoring, no algorithm. A volunteer browses events and applies; the signup starts `pending`; staff reviews and accepts or rejects. Matching happens because volunteers self-select into what they're suited for and staff has final say — satisfies "not recommender/similarity matching" directly.
+2. **Volunteer-to-event matching** — **decided (revised): both paths, combined.** A volunteer can browse events and apply directly (signup starts `pending`, staff reviews and accepts/rejects). Staff can also open an event and see volunteers ranked by skill/location overlap (`GET /events/{id}/suggested-volunteers` — comma-tokenized skill intersection + location substring match) and invite one directly (signup starts `confirmed` — staff already vetted the choice, no separate approval step needed). Neither path replaces the other; both write to the same `EventSignup` table.
 
 ## Cut list (explicitly not building, and why)
 

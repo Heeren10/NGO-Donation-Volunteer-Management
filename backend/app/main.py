@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,26 +13,7 @@ from sqlmodel import Session, select
 from app.auth import hash_password
 from app.database import engine, init_db
 from app.models import Profile, Role
-from app.routers import analytics, auth, campaigns, communications, donations, donors, events, signups, volunteers
-
-app = FastAPI(title="NGO Management Platform API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(auth.router)
-app.include_router(donors.router)
-app.include_router(campaigns.router)
-app.include_router(donations.router)
-app.include_router(volunteers.router)
-app.include_router(events.router)
-app.include_router(signups.router)
-app.include_router(communications.router)
-app.include_router(analytics.router)
+from app.routers import analytics, auth, campaigns, communications, donations, donors, events, public, signups, volunteers
 
 
 def bootstrap_admin() -> None:
@@ -46,10 +28,32 @@ def bootstrap_admin() -> None:
         print(f"Seeded default admin account: {admin_email} / {admin_password}")
 
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
     bootstrap_admin()
+    yield
+
+
+app = FastAPI(title="NGO Management Platform API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(public.router)
+app.include_router(donors.router)
+app.include_router(campaigns.router)
+app.include_router(donations.router)
+app.include_router(volunteers.router)
+app.include_router(events.router)
+app.include_router(signups.router)
+app.include_router(communications.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health")

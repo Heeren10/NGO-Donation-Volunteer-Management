@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { decodeJwtPayload } from "@/lib/jwt";
 
 const TOKEN_COOKIE = "ngo_token";
 
@@ -22,21 +23,10 @@ export async function clearToken(): Promise<void> {
   (await cookies()).delete(TOKEN_COOKIE);
 }
 
-/** Decodes the JWT payload without verifying the signature — fine for optimistic
- * UI/redirect decisions since the backend independently verifies + enforces on every request. */
-export function decodeToken(token: string): Session | null {
-  try {
-    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
-    return { profileId: Number(payload.sub), role: payload.role, exp: payload.exp };
-  } catch {
-    return null;
-  }
-}
-
 export async function getSession(): Promise<Session | null> {
   const token = await getToken();
   if (!token) return null;
-  const session = decodeToken(token);
-  if (!session || session.exp * 1000 < Date.now()) return null;
-  return session;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+  return { profileId: Number(payload.sub), role: payload.role, exp: payload.exp };
 }

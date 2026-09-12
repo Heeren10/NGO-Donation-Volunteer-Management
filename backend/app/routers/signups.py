@@ -6,6 +6,7 @@ from sqlmodel import Session, SQLModel, select
 from app.database import get_session
 from app.deps import get_current_profile, require_admin
 from app.models import Event, EventSignup, Profile, Role, SignupStatus, Volunteer
+from app.services import event_names, volunteer_names
 
 router = APIRouter(prefix="/signups", tags=["signups"], dependencies=[Depends(get_current_profile)])
 
@@ -29,6 +30,7 @@ class SignupRead(SQLModel):
     status: SignupStatus
     hours_logged: float
     event_name: Optional[str] = None
+    volunteer_name: Optional[str] = None
 
 
 def _own_volunteer(profile: Profile, session: Session) -> Optional[Volunteer]:
@@ -54,11 +56,12 @@ def list_signups(
         query = query.where(EventSignup.volunteer_id == (own.id if own else -1))
 
     signups = session.exec(query).all()
-    results = []
-    for s in signups:
-        event = session.get(Event, s.event_id)
-        results.append(SignupRead(**s.model_dump(), event_name=event.name if event else None))
-    return results
+    e_names = event_names(session, [s.event_id for s in signups])
+    v_names = volunteer_names(session, [s.volunteer_id for s in signups])
+    return [
+        SignupRead(**s.model_dump(), event_name=e_names.get(s.event_id), volunteer_name=v_names.get(s.volunteer_id))
+        for s in signups
+    ]
 
 
 @router.post("/", response_model=EventSignup)
@@ -67,7 +70,8 @@ def apply_to_event(
     profile: Profile = Depends(get_current_profile),
     session: Session = Depends(get_session),
 ):
-    """Volunteer-to-event matching: a volunteer applies, staff accepts/rejects — no scoring algorithm."""
+    """Two paths to the same table: a volunteer applies (pending, awaits staff review) or
+    staff directly invites a suggested volunteer (confirmed immediately — already vetted)."""
     if not session.get(Event, signup.event_id):
         raise HTTPException(status_code=404, detail="Event not found")
 
@@ -77,15 +81,21 @@ def apply_to_event(
         if not session.get(Volunteer, signup.volunteer_id):
             raise HTTPException(status_code=404, detail="Volunteer not found")
         volunteer_id = signup.volunteer_id
+        status = SignupStatus.confirmed
     else:
         own = _own_volunteer(profile, session)
         if not own:
             raise HTTPException(status_code=404, detail="No volunteer profile linked to this account")
         volunteer_id = own.id
+        status = SignupStatus.pending
 
-    db_signup = EventSignup(
-        event_id=signup.event_id, volunteer_id=volunteer_id, role=signup.role, status=SignupStatus.pending
-    )
+    already_exists = session.exec(
+        select(EventSignup).where(EventSignup.event_id == signup.event_id, EventSignup.volunteer_id == volunteer_id)
+    ).first()
+    if already_exists:
+        raise HTTPException(status_code=409, detail="This volunteer already has a signup for this event")
+
+    db_signup = EventSignup(event_id=signup.event_id, volunteer_id=volunteer_id, role=signup.role, status=status)
     session.add(db_signup)
     session.commit()
     session.refresh(db_signup)

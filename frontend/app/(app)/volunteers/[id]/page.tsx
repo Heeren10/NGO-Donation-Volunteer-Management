@@ -1,19 +1,18 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Trash2, CalendarPlus, Clock, MapPin } from "lucide-react";
+import { Trash2, CalendarPlus, Clock, MapPin, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
-import { Avatar, Badge, Button, Card, EmptyState, Input, Label, Select } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Input, Label, Select, SIGNUP_STATUS_VARIANT } from "@/components/ui";
 
-const STATUS_VARIANT = {
-  pending: "default",
-  confirmed: "primary",
-  rejected: "danger",
-  attended: "accent",
-  no_show: "danger",
-} as const;
-
-export default async function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function VolunteerDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const volunteerId = Number(id);
 
   const [volunteer, signups, events] = await Promise.all([
@@ -23,6 +22,9 @@ export default async function VolunteerDetailPage({ params }: { params: Promise<
   ]);
 
   if (!volunteer) notFound();
+
+  const signedUpEventIds = new Set(signups.map((s) => s.event_id));
+  const availableEvents = events.filter((e) => !signedUpEventIds.has(e.id));
 
   async function updateVolunteer(formData: FormData) {
     "use server";
@@ -49,7 +51,11 @@ export default async function VolunteerDetailPage({ params }: { params: Promise<
     const event_id = Number(formData.get("event_id"));
     const role = String(formData.get("role") || "").trim();
     if (!event_id) return;
-    await api.signups.apply({ event_id, volunteer_id: volunteerId, role: role || undefined });
+    try {
+      await api.signups.apply({ event_id, volunteer_id: volunteerId, role: role || undefined });
+    } catch {
+      redirect(`/volunteers/${volunteerId}?error=1`);
+    }
     revalidatePath(`/volunteers/${volunteerId}`);
     revalidatePath("/my");
   }
@@ -108,6 +114,13 @@ export default async function VolunteerDetailPage({ params }: { params: Promise<
         </form>
       </div>
 
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+          <TriangleAlert size={14} className="shrink-0" />
+          This volunteer already has a signup for that event.
+        </div>
+      )}
+
       <section className="grid gap-6 sm:grid-cols-2">
         <Card>
           <span className="text-sm font-medium text-ink">Profile</span>
@@ -143,18 +156,22 @@ export default async function VolunteerDetailPage({ params }: { params: Promise<
             <CalendarPlus size={14} className="text-primary" />
             Sign up for an event
           </span>
-          <form action={addSignup} className="mt-3 flex flex-col gap-3">
-            <Select name="event_id" required defaultValue="">
-              <option value="">Select event</option>
-              {events.map((e) => (
-                <option key={e.id} value={e.id}>{e.name} ({e.date})</option>
-              ))}
-            </Select>
-            <Input name="role" placeholder="Role (optional)" />
-            <Button type="submit" variant="accent" className="self-start">
-              Sign up
-            </Button>
-          </form>
+          {availableEvents.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">Already signed up for every open event.</p>
+          ) : (
+            <form action={addSignup} className="mt-3 flex flex-col gap-3">
+              <Select name="event_id" required defaultValue="">
+                <option value="">Select event</option>
+                {availableEvents.map((e) => (
+                  <option key={e.id} value={e.id}>{e.name} ({e.date})</option>
+                ))}
+              </Select>
+              <Input name="role" placeholder="Role (optional)" />
+              <Button type="submit" variant="accent" className="self-start">
+                Sign up
+              </Button>
+            </form>
+          )}
         </Card>
       </section>
 
@@ -180,7 +197,7 @@ export default async function VolunteerDetailPage({ params }: { params: Promise<
                     <td className="px-3 py-2 font-medium text-ink">{s.event_name || `Event #${s.event_id}`}</td>
                     <td className="px-3 py-2 text-muted">{s.role || "—"}</td>
                     <td className="px-3 py-2">
-                      <Badge variant={STATUS_VARIANT[s.status]}>{s.status.replace("_", " ")}</Badge>
+                      <Badge variant={SIGNUP_STATUS_VARIANT[s.status]}>{s.status.replace("_", " ")}</Badge>
                     </td>
                     <td className="px-3 py-2 text-muted">{s.hours_logged}</td>
                     <td className="px-3 py-2">

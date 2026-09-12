@@ -6,9 +6,85 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
 function cx(...classes: (string | false | undefined)[]) {
   return classes.filter(Boolean).join(" ");
+}
+
+/** Shared across every page that renders a signup's status (my/, volunteers/[id], events/[id]). */
+export const SIGNUP_STATUS_VARIANT = {
+  pending: "default",
+  confirmed: "primary",
+  rejected: "danger",
+  attended: "accent",
+  no_show: "danger",
+} as const;
+
+/** Shared across every page that labels an event's category (my/, events/). */
+export const EVENT_CATEGORY_LABELS = {
+  fundraising: "Fundraising",
+  awareness: "Awareness",
+  community_drive: "Community Drive",
+  workshop: "Workshop",
+  training: "Training",
+  charity_campaign: "Charity Campaign",
+} as const;
+
+/** Shared across every page that labels a campaign's category (campaigns/, campaigns/[id]). */
+export const CAMPAIGN_CATEGORY_LABELS = {
+  education: "Education",
+  healthcare: "Healthcare",
+  environment: "Environment",
+  animal_welfare: "Animal Welfare",
+  disaster_relief: "Disaster Relief",
+  womens_empowerment: "Women's Empowerment",
+  community_development: "Community Development",
+  child_welfare: "Child Welfare",
+} as const;
+
+/** Faint dot-grid background, used behind hero/brand panels. `id` must be unique if more than one is on screen at once. */
+export function DotGrid({ id = "dot-grid", opacity = 0.12 }: { id?: string; opacity?: number }) {
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" style={{ opacity }} aria-hidden>
+      <pattern id={id} x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
+        <circle cx="2" cy="2" r="1.6" fill="currentColor" />
+      </pattern>
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
+    </svg>
+  );
+}
+
+/** Shared two-column shell for login/register: branded pitch panel + centered form. */
+export function AuthLayout({
+  heroTitle,
+  heroSubtitle,
+  children,
+}: {
+  heroTitle: ReactNode;
+  heroSubtitle: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid min-h-screen sm:grid-cols-2">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-primary p-10 text-primary-foreground sm:flex">
+        <DotGrid id="auth-dots" />
+        <Link href="/" className="relative flex items-center gap-1.5 text-sm font-semibold hover:opacity-90">
+          <Sparkles size={16} strokeWidth={2.5} />
+          NGO Platform
+        </Link>
+        <div className="relative flex flex-col gap-2 animate-fade-up" style={{ animationDelay: "40ms" }}>
+          <h1 className="max-w-sm text-3xl font-semibold tracking-tight text-balance">{heroTitle}</h1>
+          <p className="max-w-sm text-sm text-primary-foreground/80">{heroSubtitle}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center p-8">
+        <div className="flex w-full max-w-sm flex-col gap-6">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 const buttonVariants = {

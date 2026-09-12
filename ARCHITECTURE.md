@@ -23,12 +23,15 @@ backend/
   check_db.py            schema smoke test — run after any model change
   .env / .env.example    JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD, NVIDIA_API_KEY, NVIDIA_MODEL
   app/
-    main.py              FastAPI app, CORS, router registration, startup (init_db + admin bootstrap)
+    main.py              FastAPI app, CORS, router registration, lifespan (init_db + admin bootstrap)
     database.py          SQLite engine, init_db(), get_session() dependency
     models.py            SQLModel table definitions — single source of truth for the schema
     auth.py              password hashing (bcrypt), JWT issue/decode (pyjwt)
     deps.py              FastAPI dependencies: get_current_profile, require_admin, get_current_volunteer
     ai_service.py         NVIDIA NIM client for the AI Impact Storyteller
+    services.py           shared aggregate queries (raised amounts, hours totals, name lookups) — one
+                           batched query per caller instead of one query per row; used by campaigns.py,
+                           analytics.py, volunteers.py, signups.py to avoid duplicating the same SUM/JOIN
     routers/
       auth.py             /auth/register, /auth/login, /auth/me
       donors.py           admin-only CRUD
@@ -36,7 +39,7 @@ backend/
       campaigns.py        admin-write / any-authenticated-read, + AI impact-report endpoints
       volunteers.py       admin CRUD (list/create/delete), self-or-admin (get/update)
       events.py           admin-write / any-authenticated-read
-      signups.py          volunteer applies (self only), admin accepts/rejects/marks attendance
+      signups.py          volunteer applies (self only, starts pending) or admin invites (starts confirmed); admin accepts/rejects/marks attendance
       communications.py   admin-only
       analytics.py        admin-only dashboard aggregates
 ```
@@ -73,7 +76,12 @@ JWT, two roles, no session store (stateless, 7-day expiry token).
 
 ### Volunteer-to-event matching
 
-No scoring/recommender algorithm. Flow: volunteer browses `GET /events/`, applies via `POST /signups/` (status starts `pending`, volunteer_id forced to their own record — can't apply on someone else's behalf), staff reviews and `PATCH /signups/{id}` to `confirmed`/`rejected`, later marks `attended` + logs hours.
+Two paths into the same `EventSignup` table:
+
+- **Self-service** — volunteer browses `GET /events/`, applies via `POST /signups/` (volunteer_id forced to their own record — can't apply on someone else's behalf). Status starts `pending`; staff reviews and `PATCH /signups/{id}` to `confirmed`/`rejected`.
+- **Staff-initiated** — staff opens `GET /events/{id}/suggested-volunteers` (admin-only), which ranks volunteers not already signed up for that event by skill overlap (comma-tokenized `Event.roles_needed` ∩ `Volunteer.skills`, weight 3 per match) plus a location substring bonus (weight 2), and invites one via `POST /signups/` with an explicit `volunteer_id`. Status starts `confirmed` directly — staff already vetted the choice, so there's no separate approval step.
+
+Either way, staff later marks `attended` + logs hours via `PATCH /signups/{id}`.
 
 ### AI Impact Storyteller
 
@@ -90,19 +98,21 @@ frontend/
     donors/                 admin: list + [id] detail (CRUD, donation recording, acknowledgments)
     volunteers/              admin: list + [id] detail (CRUD, signup review)
     campaigns/                admin: list + create
-    events/                    admin: list + create
-    (planned) login/           auth: login form
-    (planned) register/         auth: volunteer self-registration
-    (planned) my/                volunteer: own profile, browse+apply, my signups
+    events/                    admin: list + create; [id] detail (suggested volunteers + signups table)
+    login/                     auth: login form
+    register/                  auth: volunteer self-registration
+    my/                         volunteer: own profile, browse+apply, my signups
   components/
-    NavBar.tsx              role-aware nav (planned: hide admin tabs from volunteer role)
-    ui/                     shared primitives — Button, Input/Select/Textarea, Card, Badge,
-                             PageHeader, EmptyState, ProgressBar, Avatar, AnimatedNumber
+    NavBar.tsx              role-aware nav (hides admin tabs from volunteer role)
+    ui/                     shared primitives — Button, Input/Select/Textarea, Card, Badge, AuthLayout,
+                             DotGrid, PageHeader, EmptyState, ProgressBar, Avatar, ProgressRing,
+                             plus shared constants (SIGNUP_STATUS_VARIANT, EVENT_CATEGORY_LABELS)
     charts/                 Recharts wrappers, themed via CSS custom properties
   lib/
     api.ts                  typed fetch client — one function per backend endpoint
-    (planned) auth.ts        cookie-based token helpers, attach Authorization header
-  middleware.ts (planned)   redirect unauthenticated requests to /login; role-based route gating
+    auth.ts                 cookie-based token helpers (server-only), attach Authorization header
+    jwt.ts                  dependency-free JWT payload decode, shared by lib/auth.ts and proxy.ts
+  proxy.ts                  Next.js 16 middleware — redirect unauthenticated requests to /login; role-based route gating
 ```
 
 - All data pages are **Server Components** — pages are `async function` and call `api.ts` directly with `await`, no client-side loading state needed for reads.

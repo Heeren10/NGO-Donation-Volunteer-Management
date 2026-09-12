@@ -1,21 +1,11 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { Megaphone } from "lucide-react";
 import { api, type CampaignCategory } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { Badge, Button, Card, EmptyState, Input, Label, PageHeader, ProgressBar, Select } from "@/components/ui";
+import { Badge, Button, CAMPAIGN_CATEGORY_LABELS, Card, EmptyState, Input, Label, PageHeader, ProgressBar, Select } from "@/components/ui";
 
 const STATUS_VARIANT = { draft: "default", active: "primary", completed: "accent" } as const;
-
-const CATEGORY_LABELS: Record<CampaignCategory, string> = {
-  education: "Education",
-  healthcare: "Healthcare",
-  environment: "Environment",
-  animal_welfare: "Animal Welfare",
-  disaster_relief: "Disaster Relief",
-  womens_empowerment: "Women's Empowerment",
-  community_development: "Community Development",
-  child_welfare: "Child Welfare",
-};
 
 export default async function CampaignsPage() {
   const [campaigns, session] = await Promise.all([api.campaigns.list(), getSession()]);
@@ -45,19 +35,21 @@ export default async function CampaignsPage() {
         {campaigns.map((c) => {
           const pct = c.goal_amount > 0 ? (c.raised_amount / c.goal_amount) * 100 : 0;
           return (
-            <Card key={c.id} hover>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 font-medium text-ink">
-                  {c.name}
-                  <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
-                  {c.category && <Badge>{CATEGORY_LABELS[c.category]}</Badge>}
-                </span>
-                <span className="text-muted">₹{c.raised_amount.toLocaleString()} / ₹{c.goal_amount.toLocaleString()}</span>
-              </div>
-              <div className="mt-2.5">
-                <ProgressBar pct={pct} />
-              </div>
-            </Card>
+            <Link key={c.id} href={`/campaigns/${c.id}`}>
+              <Card hover>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 font-medium text-ink">
+                    {c.name}
+                    <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
+                    {c.category && <Badge>{CAMPAIGN_CATEGORY_LABELS[c.category]}</Badge>}
+                  </span>
+                  <span className="text-muted">₹{c.raised_amount.toLocaleString()} / ₹{c.goal_amount.toLocaleString()}</span>
+                </div>
+                <div className="mt-2.5">
+                  <ProgressBar pct={pct} />
+                </div>
+              </Card>
+            </Link>
           );
         })}
       </div>
@@ -74,7 +66,7 @@ export default async function CampaignsPage() {
               <Label>Category</Label>
               <Select name="category" defaultValue="">
                 <option value="">None</option>
-                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                {Object.entries(CAMPAIGN_CATEGORY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </Select>
