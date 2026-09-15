@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, HeartHandshake, Users, Megaphone, CalendarDays, Sparkles, UserRound, LogOut, CircleDollarSign } from "lucide-react";
+import { LayoutDashboard, HeartHandshake, Users, Megaphone, CalendarDays, Sparkles, UserRound, LogOut, CircleDollarSign, FileText, CloudLightning } from "lucide-react";
 import { logoutAction } from "@/lib/auth-actions";
 
 const ADMIN_TABS = [
@@ -11,6 +11,8 @@ const ADMIN_TABS = [
   { href: "/volunteers", label: "Volunteers", icon: Users },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/events", label: "Events", icon: CalendarDays },
+  { href: "/grants", label: "Grant Proposal", icon: FileText },
+  { href: "/alerts", label: "Risk Alerts", icon: CloudLightning },
   { href: "/donate", label: "Donate page", icon: CircleDollarSign },
 ];
 
@@ -27,10 +29,13 @@ export default function NavBar({ role }: { role: "admin" | "volunteer" }) {
   return (
     <nav className="sticky top-0 z-20 border-b border-border bg-bg/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-5xl items-center gap-1 px-6 py-3 sm:px-8">
-        <span className="mr-5 flex items-center gap-1.5 text-sm font-semibold text-ink">
+        <Link
+          href={role === "admin" ? "/" : "/my"}
+          className="mr-5 flex items-center gap-1.5 text-sm font-semibold text-ink"
+        >
           <Sparkles size={16} className="text-primary" strokeWidth={2.5} />
           NGO Platform
-        </span>
+        </Link>
         {tabs.map((tab) => {
           const active = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
           const Icon = tab.icon;

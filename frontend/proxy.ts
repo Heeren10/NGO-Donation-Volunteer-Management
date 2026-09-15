@@ -4,7 +4,7 @@ import { decodeJwtPayload } from "@/lib/jwt";
 const TOKEN_COOKIE = "ngo_token";
 const PUBLIC_PATHS = ["/login", "/register"];
 const OPEN_PREFIXES = ["/donate"]; // no login required, ever — donors aren't platform users
-const ADMIN_ONLY_PREFIXES = ["/", "/donors", "/volunteers"];
+const ADMIN_ONLY_PREFIXES = ["/", "/donors", "/volunteers", "/grants", "/alerts"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -33,5 +33,8 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Must exclude the whole `_next/` namespace, not just static/image — this also covers the
+  // dev-mode HMR websocket endpoint. Redirecting a websocket upgrade breaks it silently and the
+  // client retries instantly, forever, which looks like the page endlessly reloading.
+  matcher: ["/((?!_next/|favicon.ico).*)"],
 };

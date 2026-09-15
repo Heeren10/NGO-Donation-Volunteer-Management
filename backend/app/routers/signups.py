@@ -1,10 +1,11 @@
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, SQLModel, select
 
 from app.database import get_session
-from app.deps import get_current_profile, require_admin
+from app.deps import get_current_profile
 from app.models import Event, EventSignup, Profile, Role, SignupStatus, Volunteer
 from app.services import event_names, volunteer_names
 
@@ -102,12 +103,37 @@ def apply_to_event(
     return db_signup
 
 
-@router.patch("/{signup_id}", response_model=EventSignup, dependencies=[Depends(require_admin)])
-def update_signup(signup_id: int, update: SignupUpdate, session: Session = Depends(get_session)):
-    """Staff accepts/rejects an application, or marks attendance + logs hours."""
+@router.patch("/{signup_id}", response_model=EventSignup)
+def update_signup(
+    signup_id: int,
+    update: SignupUpdate,
+    profile: Profile = Depends(get_current_profile),
+    session: Session = Depends(get_session),
+):
+    """Staff accepts/rejects an application, marks attendance once the event has happened, or
+    cancels a signup before it does. A volunteer may only cancel their own signup the same way."""
     signup = session.get(EventSignup, signup_id)
     if not signup:
         raise HTTPException(status_code=404, detail="Signup not found")
+
+    event = session.get(Event, signup.event_id)
+    event_has_passed = bool(event and event.date <= date.today())
+
+    if profile.role == Role.admin:
+        if update.status in (SignupStatus.attended, SignupStatus.no_show) and not event_has_passed:
+            raise HTTPException(status_code=422, detail="Can't record attendance before the event date")
+        if update.status == SignupStatus.cancelled and event_has_passed:
+            raise HTTPException(status_code=409, detail="Can't cancel a signup after the event has happened")
+    else:
+        own = _own_volunteer(profile, session)
+        if not own or own.id != signup.volunteer_id:
+            raise HTTPException(status_code=403, detail="You can only manage your own signups")
+        if update.status != SignupStatus.cancelled or update.hours_logged is not None:
+            raise HTTPException(status_code=403, detail="Volunteers can only cancel their own signup")
+        if signup.status not in (SignupStatus.pending, SignupStatus.confirmed):
+            raise HTTPException(status_code=409, detail="This signup can no longer be cancelled")
+        if event_has_passed:
+            raise HTTPException(status_code=409, detail="Can't cancel a signup after the event has happened")
 
     for field, value in update.model_dump(exclude_unset=True).items():
         setattr(signup, field, value)

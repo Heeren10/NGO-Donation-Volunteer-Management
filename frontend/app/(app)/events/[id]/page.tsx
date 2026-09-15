@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { CalendarDays, Sparkles, Trash2, TriangleAlert } from "lucide-react";
+import { CalendarDays, Settings2, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { api, type EventCategory } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { Badge, Button, Card, EmptyState, EVENT_CATEGORY_LABELS, Input, Label, PageHeader, Select, SIGNUP_STATUS_VARIANT } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, EVENT_CATEGORY_LABELS, Field, FieldGrid, Input, PageHeader, Select, SIGNUP_STATUS_LABEL, SIGNUP_STATUS_VARIANT } from "@/components/ui";
 
 export default async function EventDetailPage({
   params,
@@ -28,6 +28,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const mySignup = !isAdmin ? signups[0] : undefined; // backend already scopes a volunteer's own list to just their signups
+  const eventHasPassed = event.date <= new Date().toISOString().slice(0, 10);
 
   async function invite(formData: FormData) {
     "use server";
@@ -65,6 +66,20 @@ export default async function EventDetailPage({
     revalidatePath("/");
   }
 
+  async function markAbsent(formData: FormData) {
+    "use server";
+    await api.signups.update(Number(formData.get("signup_id")), { status: "no_show" });
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath("/my");
+  }
+
+  async function cancelSignup(formData: FormData) {
+    "use server";
+    await api.signups.update(Number(formData.get("signup_id")), { status: "cancelled" });
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath("/my");
+  }
+
   async function apply() {
     "use server";
     try {
@@ -72,6 +87,13 @@ export default async function EventDetailPage({
     } catch {
       redirect(`/events/${eventId}?error=1`);
     }
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath("/my");
+  }
+
+  async function cancelMySignup(formData: FormData) {
+    "use server";
+    await api.signups.update(Number(formData.get("signup_id")), { status: "cancelled" });
     revalidatePath(`/events/${eventId}`);
     revalidatePath("/my");
   }
@@ -145,7 +167,15 @@ export default async function EventDetailPage({
           {mySignup ? (
             <div className="flex items-center justify-between text-sm">
               <span className="text-ink">Your application</span>
-              <Badge variant={SIGNUP_STATUS_VARIANT[mySignup.status]}>{mySignup.status.replace("_", " ")}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={SIGNUP_STATUS_VARIANT[mySignup.status]}>{SIGNUP_STATUS_LABEL[mySignup.status]}</Badge>
+                {(mySignup.status === "pending" || mySignup.status === "confirmed") && !eventHasPassed && (
+                  <form action={cancelMySignup}>
+                    <input type="hidden" name="signup_id" value={mySignup.id} />
+                    <Button type="submit" variant="ghost" size="sm">Cancel</Button>
+                  </form>
+                )}
+              </div>
             </div>
           ) : (
             <form action={apply} className="flex items-center justify-between gap-3">
@@ -212,7 +242,7 @@ export default async function EventDetailPage({
                       <td className="px-3 py-2 font-medium text-ink">{s.volunteer_name || `Volunteer #${s.volunteer_id}`}</td>
                       <td className="px-3 py-2 text-muted">{s.role || "—"}</td>
                       <td className="px-3 py-2">
-                        <Badge variant={SIGNUP_STATUS_VARIANT[s.status]}>{s.status.replace("_", " ")}</Badge>
+                        <Badge variant={SIGNUP_STATUS_VARIANT[s.status]}>{SIGNUP_STATUS_LABEL[s.status]}</Badge>
                       </td>
                       <td className="px-3 py-2 text-muted">{s.hours_logged}</td>
                       <td className="px-3 py-2">
@@ -228,12 +258,24 @@ export default async function EventDetailPage({
                             </form>
                           </div>
                         )}
-                        {s.status === "confirmed" && (
-                          <form action={markAttended} className="flex items-center gap-1.5">
+                        {s.status === "confirmed" && !eventHasPassed && (
+                          <form action={cancelSignup}>
                             <input type="hidden" name="signup_id" value={s.id} />
-                            <Input name="hours" type="number" step="0.5" min="0" placeholder="hrs" className="w-16 px-2 py-1 text-xs" />
-                            <Button type="submit" size="sm">Mark attended</Button>
+                            <Button type="submit" variant="ghost" size="sm">Cancel</Button>
                           </form>
+                        )}
+                        {s.status === "confirmed" && eventHasPassed && (
+                          <div className="flex items-center gap-1.5">
+                            <form action={markAttended} className="flex items-center gap-1.5">
+                              <input type="hidden" name="signup_id" value={s.id} />
+                              <Input name="hours" type="number" step="0.5" min="0" placeholder="hrs" className="w-16 px-2 py-1 text-xs" />
+                              <Button type="submit" size="sm">Mark attended</Button>
+                            </form>
+                            <form action={markAbsent}>
+                              <input type="hidden" name="signup_id" value={s.id} />
+                              <Button type="submit" variant="danger" size="sm">Mark absent</Button>
+                            </form>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -247,43 +289,42 @@ export default async function EventDetailPage({
 
       {isAdmin && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-ink">Event details</h2>
-          <Card className="sm:max-w-sm">
-            <form action={updateEvent} className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <Label>Name</Label>
-                <Input name="name" defaultValue={event.name} required />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Category</Label>
-                <Select name="category" defaultValue={event.category ?? ""}>
-                  <option value="">None</option>
-                  {Object.entries(EVENT_CATEGORY_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Date</Label>
-                <Input name="date" type="date" defaultValue={event.date} required />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Location</Label>
-                <Input name="location" defaultValue={event.location ?? ""} placeholder="Optional" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Roles needed</Label>
-                <Input name="roles_needed" defaultValue={event.roles_needed ?? ""} placeholder="first-aid, driving" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Campaign</Label>
-                <Select name="campaign_id" defaultValue={event.campaign_id ?? ""}>
-                  <option value="">No campaign</option>
-                  {campaigns.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </Select>
-              </div>
+          <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <Settings2 size={14} className="text-primary" />
+            Event details
+          </h2>
+          <Card>
+            <form action={updateEvent} className="flex flex-col gap-4">
+              <FieldGrid>
+                <Field label="Name" span={2}>
+                  <Input name="name" defaultValue={event.name} required />
+                </Field>
+                <Field label="Category">
+                  <Select name="category" defaultValue={event.category ?? ""}>
+                    <option value="">None</option>
+                    {Object.entries(EVENT_CATEGORY_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Date">
+                  <Input name="date" type="date" defaultValue={event.date} required />
+                </Field>
+                <Field label="Location">
+                  <Input name="location" defaultValue={event.location ?? ""} placeholder="Optional" />
+                </Field>
+                <Field label="Roles needed">
+                  <Input name="roles_needed" defaultValue={event.roles_needed ?? ""} placeholder="first-aid, driving" />
+                </Field>
+                <Field label="Campaign" span={2}>
+                  <Select name="campaign_id" defaultValue={event.campaign_id ?? ""}>
+                    <option value="">No campaign</option>
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </FieldGrid>
               <Button type="submit" className="self-start">
                 Save changes
               </Button>

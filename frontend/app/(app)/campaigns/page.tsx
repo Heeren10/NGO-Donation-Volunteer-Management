@@ -1,13 +1,18 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { Megaphone } from "lucide-react";
+import { Megaphone, PlusCircle } from "lucide-react";
 import { api, type CampaignCategory } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { Badge, Button, CAMPAIGN_CATEGORY_LABELS, Card, EmptyState, Input, Label, PageHeader, ProgressBar, Select } from "@/components/ui";
+import { Badge, Button, CAMPAIGN_CATEGORY_LABELS, Card, EmptyState, Field, FieldGrid, Input, PageHeader, ProgressBar, Select } from "@/components/ui";
 
 const STATUS_VARIANT = { draft: "default", active: "primary", completed: "accent" } as const;
 
-export default async function CampaignsPage() {
+export default async function CampaignsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ name?: string; category?: string }>;
+}) {
+  const { name: prefillName, category: prefillCategory } = await searchParams;
   const [campaigns, session] = await Promise.all([api.campaigns.list(), getSession()]);
   const isAdmin = session?.role === "admin";
 
@@ -55,31 +60,32 @@ export default async function CampaignsPage() {
       </div>
 
       {isAdmin && (
-        <Card className="sm:max-w-sm">
-          <span className="text-sm font-medium text-ink">New campaign</span>
-          <form action={addCampaign} className="mt-3 flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <Label>Name</Label>
-              <Input name="name" placeholder="Clean Water Drive" required />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Category</Label>
-              <Select name="category" defaultValue="">
-                <option value="">None</option>
-                {Object.entries(CAMPAIGN_CATEGORY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Goal amount</Label>
-              <Input name="goal_amount" type="number" step="0.01" min="0" required />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Start date</Label>
-              <Input name="start_date" type="date" required />
-            </div>
-            <Button type="submit" className="mt-1 self-start">
+        <Card>
+          <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <PlusCircle size={14} className="text-primary" />
+            New campaign
+          </h2>
+          <form action={addCampaign} className="mt-3 flex flex-col gap-4">
+            <FieldGrid>
+              <Field label="Name" span={2}>
+                <Input name="name" placeholder="Clean Water Drive" defaultValue={prefillName ?? ""} required />
+              </Field>
+              <Field label="Category">
+                <Select name="category" defaultValue={prefillCategory ?? ""}>
+                  <option value="">None</option>
+                  {Object.entries(CAMPAIGN_CATEGORY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Goal amount">
+                <Input name="goal_amount" type="number" step="0.01" min="0" required />
+              </Field>
+              <Field label="Start date" span={2}>
+                <Input name="start_date" type="date" required />
+              </Field>
+            </FieldGrid>
+            <Button type="submit" className="self-start">
               Create campaign
             </Button>
           </form>

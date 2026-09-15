@@ -190,3 +190,16 @@ body {
   --viz-series-1: var(--color-primary);
   --viz-series-2: var(--color-accent);
 }
+
+/* Grant proposal printing — white paper, no wasted color, no shadows/borders bleeding ink.
+   `print:hidden` (Tailwind's built-in print variant) hides nav/buttons on the printed page. */
+@media print {
+  body {
+    background: white;
+  }
+  .print-surface {
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+}

@@ -2,7 +2,7 @@ import { type CSSProperties } from "react";
 import { revalidatePath } from "next/cache";
 import { CalendarDays, MapPin, Clock, Award, Sparkles, CalendarCheck } from "lucide-react";
 import { api } from "@/lib/api";
-import { Badge, Button, Card, DotGrid, EmptyState, EVENT_CATEGORY_LABELS, Input, Label, ProgressRing, SIGNUP_STATUS_VARIANT } from "@/components/ui";
+import { Badge, Button, Card, DotGrid, EmptyState, EVENT_CATEGORY_LABELS, Input, Label, ProgressRing, SIGNUP_STATUS_LABEL, SIGNUP_STATUS_VARIANT } from "@/components/ui";
 
 const MILESTONES = [
   { hours: 1, label: "First Steps" },
@@ -22,6 +22,8 @@ export default async function MyDashboard() {
   ]);
 
   const appliedEventIds = new Set(mySignups.map((s) => s.event_id));
+  const eventDateById = new Map(events.map((e) => [e.id, e.date]));
+  const today = new Date().toISOString().slice(0, 10);
   const hours = volunteer?.total_hours ?? 0;
   const attendedCount = mySignups.filter((s) => s.status === "attended").length;
   const upcomingCount = mySignups.filter((s) => s.status === "confirmed").length;
@@ -50,6 +52,12 @@ export default async function MyDashboard() {
     } catch {
       // already applied (e.g. a race from double-submitting) — nothing to do, the list below already reflects it
     }
+    revalidatePath("/my");
+  }
+
+  async function cancelSignup(formData: FormData) {
+    "use server";
+    await api.signups.update(Number(formData.get("signup_id")), { status: "cancelled" });
     revalidatePath("/my");
   }
 
@@ -140,15 +148,26 @@ export default async function MyDashboard() {
             <EmptyState title="No applications yet" hint="Apply to an event below — staff will review it." />
           ) : (
             <div className="flex flex-col gap-2">
-              {mySignups.map((s) => (
-                <Card key={s.id}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-ink">{s.event_name || `Event #${s.event_id}`}</span>
-                    <Badge variant={SIGNUP_STATUS_VARIANT[s.status]}>{s.status.replace("_", " ")}</Badge>
-                  </div>
-                  {s.hours_logged > 0 && <div className="mt-0.5 text-xs text-muted">{s.hours_logged} hours logged</div>}
-                </Card>
-              ))}
+              {mySignups.map((s) => {
+                const eventDate = eventDateById.get(s.event_id);
+                const canCancel =
+                  (s.status === "pending" || s.status === "confirmed") && (!eventDate || eventDate > today);
+                return (
+                  <Card key={s.id}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-ink">{s.event_name || `Event #${s.event_id}`}</span>
+                      <Badge variant={SIGNUP_STATUS_VARIANT[s.status]}>{SIGNUP_STATUS_LABEL[s.status]}</Badge>
+                    </div>
+                    {s.hours_logged > 0 && <div className="mt-0.5 text-xs text-muted">{s.hours_logged} hours logged</div>}
+                    {canCancel && (
+                      <form action={cancelSignup} className="mt-2">
+                        <input type="hidden" name="signup_id" value={s.id} />
+                        <Button type="submit" variant="ghost" size="sm">Cancel</Button>
+                      </form>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

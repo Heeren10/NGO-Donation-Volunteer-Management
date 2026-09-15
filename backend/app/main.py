@@ -13,7 +13,20 @@ from sqlmodel import Session, select
 from app.auth import hash_password
 from app.database import engine, init_db
 from app.models import Profile, Role
-from app.routers import analytics, auth, campaigns, communications, donations, donors, events, public, signups, volunteers
+from app.routers import (
+    analytics,
+    auth,
+    campaigns,
+    communications,
+    donations,
+    donors,
+    events,
+    grants,
+    public,
+    signups,
+    volunteers,
+    weather,
+)
 
 
 def bootstrap_admin() -> None:
@@ -54,6 +67,8 @@ app.include_router(events.router)
 app.include_router(signups.router)
 app.include_router(communications.router)
 app.include_router(analytics.router)
+app.include_router(grants.router)
+app.include_router(weather.router)
 
 
 @app.get("/health")

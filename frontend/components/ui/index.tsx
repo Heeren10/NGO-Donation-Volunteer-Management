@@ -7,7 +7,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 
 function cx(...classes: (string | false | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -17,9 +17,21 @@ function cx(...classes: (string | false | undefined)[]) {
 export const SIGNUP_STATUS_VARIANT = {
   pending: "default",
   confirmed: "primary",
+  cancelled: "danger",
   rejected: "danger",
   attended: "accent",
   no_show: "danger",
+} as const;
+
+/** Display labels for signup status — "confirmed" reads as "Attending" until the event
+ * happens, and "no_show" reads as "Absent" once staff resolve it after the fact. */
+export const SIGNUP_STATUS_LABEL = {
+  pending: "Pending",
+  confirmed: "Attending",
+  cancelled: "Cancelled",
+  rejected: "Rejected",
+  attended: "Attended",
+  no_show: "Absent",
 } as const;
 
 /** Shared across every page that labels an event's category (my/, events/). */
@@ -140,18 +152,38 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
 
 export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      className={cx(
-        "rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink transition-colors duration-150 focus-visible:border-primary",
-        className
-      )}
-      {...props}
-    />
+    <div className="relative">
+      <select
+        className={cx(
+          "w-full appearance-none rounded-lg border border-border bg-bg px-3 py-1.5 pr-8 text-sm text-ink transition-colors duration-150 focus-visible:border-primary",
+          className
+        )}
+        {...props}
+      />
+      <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted" />
+    </div>
   );
 }
 
 export function Label({ children }: { children: ReactNode }) {
   return <label className="text-xs font-medium text-muted">{children}</label>;
+}
+
+/** Label + control wrapper for form fields — used inside FieldGrid so every editable-details
+ * form (donor/volunteer/campaign/event) lays out consistently instead of each re-stacking divs. */
+export function Field({ label, span = 1, children }: { label: string; span?: 1 | 2; children: ReactNode }) {
+  return (
+    <div className={cx("flex flex-col gap-1", span === 2 && "sm:col-span-2")}>
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+/** Two-column responsive grid for Field components — pair related fields (name+category,
+ * start+end date) on one row instead of stacking every field full-width. */
+export function FieldGrid({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>;
 }
 
 const cardHoverTone = {

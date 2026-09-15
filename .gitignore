@@ -17,9 +17,11 @@ frontend/.impeccable/
 # --- tooling / scratch ---
 .playwright-mcp/
 *.log
+/*.png
 
 # --- excluded from repo ---
 ppt_slides.md
+presentation.md
 
 # --- OS / editor ---
 .DS_Store

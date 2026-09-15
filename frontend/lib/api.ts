@@ -71,7 +71,7 @@ export type Signup = {
   event_id: number;
   volunteer_id: number;
   role: string | null;
-  status: "pending" | "confirmed" | "rejected" | "attended" | "no_show";
+  status: "pending" | "confirmed" | "cancelled" | "rejected" | "attended" | "no_show";
   hours_logged: number;
   event_name: string | null;
   volunteer_name: string | null;
@@ -120,10 +120,24 @@ export type DonationReceipt = {
   date: string;
 };
 
-const REQUEST_TIMEOUT_MS = 10_000;
+export type GrantProposal = {
+  id: number;
+  generated_content: string;
+  generated_at: string;
+};
 
-async function request<T>(path: string, options?: RequestInit & { skipAuthRedirect?: boolean }): Promise<T> {
+export type WeatherCheckResult = {
+  location: string;
+  alert: { date: string; precipitation_mm: number; condition: string } | null;
+  draft: { name: string; description: string } | null;
+};
+
+const REQUEST_TIMEOUT_MS = 10_000;
+const AI_REQUEST_TIMEOUT_MS = 100_000; // must clear the backend's own 90s budget for a full grant proposal generation
+
+async function request<T>(path: string, options?: RequestInit & { skipAuthRedirect?: boolean; timeoutMs?: number }): Promise<T> {
   const token = await getToken();
+  const timeoutMs = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -134,11 +148,11 @@ async function request<T>(path: string, options?: RequestInit & { skipAuthRedire
         ...options?.headers,
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     if (err instanceof Error && err.name === "TimeoutError") {
-      throw new Error(`Request to ${path} timed out after ${REQUEST_TIMEOUT_MS / 1000}s — is the backend running?`);
+      throw new Error(`Request to ${path} timed out after ${timeoutMs / 1000}s — is the backend running?`);
     }
     throw new Error(`Could not reach the backend at ${API_URL}${path} — is it running? (${(err as Error).message})`);
   }
@@ -232,5 +246,13 @@ export const api = {
     campaigns: () => request<Campaign[]>("/public/campaigns", { skipAuthRedirect: true }),
     donate: (data: { name: string; email?: string; phone?: string; campaign_id?: number; amount: number; method: PaymentMethod }) =>
       request<DonationReceipt>("/public/donate", { method: "POST", body: JSON.stringify(data), skipAuthRedirect: true }),
+  },
+  grants: {
+    latest: () => request<GrantProposal>("/grants/proposal"),
+    generate: () => request<GrantProposal>("/grants/proposal", { method: "POST", timeoutMs: AI_REQUEST_TIMEOUT_MS }),
+  },
+  weather: {
+    check: (location: string) =>
+      request<WeatherCheckResult>(`/weather/check?location=${encodeURIComponent(location)}`, { timeoutMs: AI_REQUEST_TIMEOUT_MS }),
   },
 };

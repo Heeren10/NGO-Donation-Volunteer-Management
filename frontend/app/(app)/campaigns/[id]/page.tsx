@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { Trash2, CalendarDays } from "lucide-react";
+import { Trash2, CalendarDays, Settings2 } from "lucide-react";
 import { api, type CampaignCategory } from "@/lib/api";
-import { Badge, Button, CAMPAIGN_CATEGORY_LABELS, EmptyState, EVENT_CATEGORY_LABELS, Input, Label, PageHeader, ProgressBar, Select } from "@/components/ui";
+import { Badge, Button, CAMPAIGN_CATEGORY_LABELS, Card, EmptyState, EVENT_CATEGORY_LABELS, Field, FieldGrid, Input, PageHeader, ProgressBar, Select } from "@/components/ui";
 
 const STATUS_OPTIONS = ["draft", "active", "completed"] as const;
 
@@ -71,47 +71,46 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       </div>
 
       <section className="grid gap-6 sm:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <span className="text-sm font-medium text-ink">Campaign details</span>
-          <form action={updateCampaign} className="mt-3 flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <Label>Name</Label>
-              <Input name="name" defaultValue={campaign.name} required />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Category</Label>
-              <Select name="category" defaultValue={campaign.category ?? ""}>
-                <option value="">None</option>
-                {Object.entries(CAMPAIGN_CATEGORY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Status</Label>
-              <Select name="status" defaultValue={campaign.status}>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s} className="capitalize">{s}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Goal amount</Label>
-              <Input name="goal_amount" type="number" step="0.01" min="0" defaultValue={campaign.goal_amount} required />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Start date</Label>
-              <Input name="start_date" type="date" defaultValue={campaign.start_date} required />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>End date</Label>
-              <Input name="end_date" type="date" defaultValue={campaign.end_date ?? ""} />
-            </div>
+        <Card>
+          <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <Settings2 size={14} className="text-primary" />
+            Campaign details
+          </h2>
+          <form action={updateCampaign} className="mt-3 flex flex-col gap-4">
+            <FieldGrid>
+              <Field label="Name" span={2}>
+                <Input name="name" defaultValue={campaign.name} required />
+              </Field>
+              <Field label="Category">
+                <Select name="category" defaultValue={campaign.category ?? ""}>
+                  <option value="">None</option>
+                  {Object.entries(CAMPAIGN_CATEGORY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Status">
+                <Select name="status" defaultValue={campaign.status}>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s} className="capitalize">{s}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Goal amount" span={2}>
+                <Input name="goal_amount" type="number" step="0.01" min="0" defaultValue={campaign.goal_amount} required />
+              </Field>
+              <Field label="Start date">
+                <Input name="start_date" type="date" defaultValue={campaign.start_date} required />
+              </Field>
+              <Field label="End date">
+                <Input name="end_date" type="date" defaultValue={campaign.end_date ?? ""} />
+              </Field>
+            </FieldGrid>
             <Button type="submit" className="self-start">
               Save changes
             </Button>
           </form>
-        </div>
+        </Card>
 
         <div className="flex flex-col gap-2">
           <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">

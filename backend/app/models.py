@@ -44,6 +44,7 @@ class EventCategory(str, Enum):
 class SignupStatus(str, Enum):
     pending = "pending"
     confirmed = "confirmed"
+    cancelled = "cancelled"
     rejected = "rejected"
     attended = "attended"
     no_show = "no_show"
@@ -138,5 +139,12 @@ class Communication(SQLModel, table=True):
 class ImpactReport(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     campaign_id: int = Field(foreign_key="campaign.id")
+    generated_content: str
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GrantProposal(SQLModel, table=True):
+    """Org-wide (not per-campaign) — built from the NGO's overall track record."""
+    id: Optional[int] = Field(default=None, primary_key=True)
     generated_content: str
     generated_at: datetime = Field(default_factory=datetime.utcnow)

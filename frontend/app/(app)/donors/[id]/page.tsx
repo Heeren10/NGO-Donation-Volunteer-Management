@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Mail, Trash2, Wallet, MessageSquareText } from "lucide-react";
+import { Mail, Trash2, Wallet, MessageSquareText, UserCog } from "lucide-react";
 import { api } from "@/lib/api";
-import { Avatar, Badge, Button, Card, EmptyState, Input, Label, Select, Textarea } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Field, FieldGrid, Input, Select, Textarea } from "@/components/ui";
 
 export default async function DonorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -84,20 +84,22 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
 
       <section className="grid gap-6 sm:grid-cols-2">
         <Card>
-          <span className="text-sm font-medium text-ink">Profile</span>
-          <form action={updateDonor} className="mt-3 flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <Label>Name</Label>
-              <Input name="name" defaultValue={donor.name} required />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Email</Label>
-              <Input name="email" defaultValue={donor.email ?? ""} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Phone</Label>
-              <Input name="phone" defaultValue={donor.phone ?? ""} />
-            </div>
+          <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <UserCog size={14} className="text-primary" />
+            Profile
+          </h2>
+          <form action={updateDonor} className="mt-3 flex flex-col gap-4">
+            <FieldGrid>
+              <Field label="Name" span={2}>
+                <Input name="name" defaultValue={donor.name} required />
+              </Field>
+              <Field label="Email">
+                <Input name="email" type="email" defaultValue={donor.email ?? ""} />
+              </Field>
+              <Field label="Phone">
+                <Input name="phone" type="tel" defaultValue={donor.phone ?? ""} />
+              </Field>
+            </FieldGrid>
             <label className="flex items-center gap-2 text-sm text-ink">
               <input type="checkbox" name="is_recurring" defaultChecked={donor.is_recurring} className="accent-primary" />
               Recurring donor
@@ -115,18 +117,22 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
 
         <div className="flex flex-col gap-4">
           <Card>
-            <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">
               <Wallet size={14} className="text-primary" />
               Record a donation
-            </span>
+            </h2>
             <form action={addDonation} className="mt-3 flex flex-col gap-3">
-              <Select name="campaign_id" defaultValue="">
-                <option value="">No campaign</option>
-                {campaigns.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </Select>
-              <Input name="amount" type="number" step="0.01" min="0" required placeholder="Amount" />
+              <Field label="Campaign">
+                <Select name="campaign_id" defaultValue="">
+                  <option value="">No campaign</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Amount">
+                <Input name="amount" type="number" step="0.01" min="0" required placeholder="0.00" />
+              </Field>
               <Button type="submit" variant="accent" className="self-start">
                 Record donation
               </Button>
@@ -134,12 +140,14 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
           </Card>
 
           <Card>
-            <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+            <h2 className="flex items-center gap-1.5 text-sm font-medium text-ink">
               <MessageSquareText size={14} className="text-primary" />
               Send acknowledgment
-            </span>
+            </h2>
             <form action={sendComm} className="mt-3 flex flex-col gap-3">
-              <Textarea name="content" rows={2} required placeholder="Thank you for..." />
+              <Field label="Message">
+                <Textarea name="content" rows={2} required placeholder="Thank you for..." />
+              </Field>
               <Button type="submit" className="self-start">
                 Send
               </Button>

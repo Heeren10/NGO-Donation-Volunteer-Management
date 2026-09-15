@@ -8,7 +8,7 @@ from app.ai_service import generate_impact_report
 from app.database import get_session
 from app.deps import get_current_profile, require_admin
 from app.models import Campaign, CampaignCategory, CampaignStatus, Donation, Event, EventSignup, ImpactReport
-from app.services import campaign_raised_amounts
+from app.services import campaign_raised_amounts, sync_campaign_status
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"], dependencies=[Depends(get_current_profile)])
 
@@ -46,6 +46,7 @@ class CampaignRead(SQLModel):
 def list_campaigns(session: Session = Depends(get_session)):
     campaigns = session.exec(select(Campaign)).all()
     raised = campaign_raised_amounts(session, [c.id for c in campaigns])
+    campaigns = [sync_campaign_status(session, c, raised.get(c.id, 0)) for c in campaigns]
     return [CampaignRead(**c.model_dump(), raised_amount=raised.get(c.id, 0)) for c in campaigns]
 
 
@@ -64,6 +65,7 @@ def get_campaign(campaign_id: int, session: Session = Depends(get_session)):
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     raised = campaign_raised_amounts(session, [campaign_id]).get(campaign_id, 0)
+    campaign = sync_campaign_status(session, campaign, raised)
     return CampaignRead(**campaign.model_dump(), raised_amount=raised)
 
 
