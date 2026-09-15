@@ -9,7 +9,23 @@ Built for a hackathon around four flagship differentiators:
 - **AI Grant Proposal Generator** — one click reads the org's real track record (funds raised, campaigns, volunteer hours) straight from the database and drafts a complete, submission-ready grant proposal.
 - **Proactive Campaign Prediction** — checks a region's weather forecast for floods/storms 3 days out (via the free Open-Meteo API) and, on a real risk, has the AI draft an emergency relief campaign and surface nearby volunteers to notify.
 
-See [`PLAN.md`](PLAN.md) for the full strategy/scope reasoning and [`ARCHITECTURE.md`](ARCHITECTURE.md) for the technical reference (data model, auth design, folder layout). Pitch materials are in [`presentation.md`](presentation.md) and [`ppt_slides.md`](ppt_slides.md).
+See [`PLAN.md`](PLAN.md) for the full strategy/scope reasoning and [`ARCHITECTURE.md`](ARCHITECTURE.md) for the technical reference (data model, auth design, folder layout).
+
+## What makes this unique
+
+Most NGO tools stop at record-keeping. Two features here go further:
+
+**🤖 AI Grant Proposal Generator**
+- **Problem:** Writing a grant application from scratch takes weeks NGOs don't have.
+- **Solution:** AI reads the org's real funds-raised, campaign, and volunteer-hours data.
+- **Result:** A complete, submission-ready proposal — in one click.
+
+**🌩️ Proactive Campaign Prediction**
+- **Problem:** NGOs act only after a disaster has already hit.
+- **Solution:** AI watches live weather, 3 days ahead, for floods and storms.
+- **Result:** Relief campaign auto-drafted, nearby volunteers alerted instantly.
+
+Other CRMs record the past. This one writes and warns — before you ask.
 
 ## Features
 
@@ -85,7 +101,7 @@ Deliberately not built yet — see `PLAN.md`'s cut list for the full reasoning b
 - **Postgres + Supabase** — swap SQLite for Postgres and deploy on [Supabase](https://supabase.com) for managed hosting. The schema is entirely ORM-defined (`SQLModel`), so this is a `DATABASE_URL` change, not a rewrite.
 - **Real payment gateway (Stripe)** — the current `/donate` page is a demo checkout; it logs a real `Donation` row but never touches an actual payment processor.
 - **Donor self-service login** — donors are currently staff-managed records only; a donor portal to view personal giving history was scoped as a stretch goal.
-- **Multi-NGO / Enterprise tier** — this is a single-organization tool today; the Enterprise pricing tier pitched in `ppt_slides.md` would need a multi-tenant layer on top of the current schema.
+- **Multi-NGO / Enterprise tier** — this is a single-organization tool today; a multi-tenant layer on top of the current schema would be needed to support multiple organizations.
 - **WhatsApp/SMS bot** — outreach beyond the current email/SMS Communication Center.
 - **Public transparency page** — a public-facing, always-on impact page beyond the one-off `/donate` checkout.
 
